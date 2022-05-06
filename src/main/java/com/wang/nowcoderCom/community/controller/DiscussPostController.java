@@ -1,9 +1,7 @@
 package com.wang.nowcoderCom.community.controller;
 
-import com.wang.nowcoderCom.community.entity.Comment;
-import com.wang.nowcoderCom.community.entity.DiscussPost;
-import com.wang.nowcoderCom.community.entity.Page;
-import com.wang.nowcoderCom.community.entity.User;
+import com.wang.nowcoderCom.community.entity.*;
+import com.wang.nowcoderCom.community.event.EventProducer;
 import com.wang.nowcoderCom.community.service.CommentService;
 import com.wang.nowcoderCom.community.service.DiscussPostService;
 import com.wang.nowcoderCom.community.service.LikeService;
@@ -11,6 +9,7 @@ import com.wang.nowcoderCom.community.service.UserService;
 import com.wang.nowcoderCom.community.util.CommunityConstant;
 import com.wang.nowcoderCom.community.util.CommunityUtil;
 import com.wang.nowcoderCom.community.util.HostHolder;
+import org.elasticsearch.client.eql.EqlSearchResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -39,6 +38,9 @@ public class DiscussPostController implements CommunityConstant {
     @Autowired
     private LikeService likeService;
 
+    @Autowired
+    private EventProducer eventProducer;
+
     @RequestMapping(path = "/add", method = RequestMethod.POST)
     @ResponseBody
     public String addDiscussPost(String title, String content) {
@@ -54,6 +56,14 @@ public class DiscussPostController implements CommunityConstant {
         post.setCreateTime(new Date());
         discussPostService.addDiscussPost(post);
 
+        // 触发发帖事件
+        Event event = new Event()
+                .setTopic(TOPIC_PUBLISH)
+                .setUserId(user.getId())
+                .setEntityType(ENTITY_TYPE_POST)
+                .setEntityId(post.getId());
+        eventProducer.fireEvent(event);
+//        System.out.println(event);
         // 报错的情况将来统一处理
         return CommunityUtil.getJSONString(0, "发布成功！");
     }
